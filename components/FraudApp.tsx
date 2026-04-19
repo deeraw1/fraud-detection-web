@@ -1,12 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://fraud-detection-api-b339.onrender.com'
-
-const ACCENT   = '#ef4444'
-const SAFE     = '#22c55e'
-const WARN     = '#f59e0b'
 
 const MERCHANT_CATEGORIES = [
   { value: 'groceries',      label: 'Groceries' },
@@ -19,7 +14,7 @@ const MERCHANT_CATEGORIES = [
   { value: 'other',          label: 'Other' },
 ]
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
 interface TxnInput {
   amount: string
@@ -45,128 +40,84 @@ interface FraudResult {
 }
 
 const defaultTxn: TxnInput = {
-  amount: '',
-  hour: '14',
-  day_of_week: '1',
-  distance_from_home: '',
-  distance_from_last_txn: '',
-  ratio_to_median: '1',
-  txn_count_1h: '1',
+  amount: '', hour: '14', day_of_week: '1',
+  distance_from_home: '', distance_from_last_txn: '',
+  ratio_to_median: '1', txn_count_1h: '1',
   merchant_category: 'groceries',
-  repeat_retailer: true,
-  used_chip: true,
-  used_pin: true,
-  online_order: false,
+  repeat_retailer: true, used_chip: true, used_pin: true, online_order: false,
 }
 
-function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+function decisionColor(d: string) {
+  if (d === 'FRAUD')  return '#e74c3c'
+  if (d === 'REVIEW') return '#f59e0b'
+  return '#17c082'
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</label>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label className="field-label">{label}</label>
       {children}
-      {hint && <span className="text-xs text-gray-600">{hint}</span>}
     </div>
   )
 }
 
-function Input({ value, onChange, type = 'number', placeholder = '', min, max, step }: {
-  value: string; onChange: (v: string) => void;
-  type?: string; placeholder?: string; min?: string; max?: string; step?: string
-}) {
+function KV({ k, v, color }: { k: string; v: string; color?: string }) {
   return (
-    <input
-      type={type} value={value} placeholder={placeholder}
-      min={min} max={max} step={step}
-      onChange={e => onChange(e.target.value)}
-      className="bg-[#0d1b2a] border border-[#1e3a5f] rounded px-3 py-2 text-sm text-white
-                 focus:outline-none focus:border-[#ef4444] transition-colors"
-    />
-  )
-}
-
-function Select({ value, onChange, options }: {
-  value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <select
-      value={value} onChange={e => onChange(e.target.value)}
-      className="bg-[#0d1b2a] border border-[#1e3a5f] rounded px-3 py-2 text-sm text-white
-                 focus:outline-none focus:border-[#ef4444] transition-colors"
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0',
+      borderBottom: '1px solid var(--border)' }}>
+      <span style={{ color: 'var(--muted)', fontSize: '0.86rem' }}>{k}</span>
+      <span style={{ fontWeight: 600, color: color ?? 'var(--text)', fontSize: '0.9rem' }}>{v}</span>
+    </div>
   )
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`flex items-center gap-2 px-3 py-2 rounded border text-sm font-medium transition-all ${
-        checked
-          ? 'border-[#22c55e] bg-[#22c55e]/10 text-[#22c55e]'
-          : 'border-[#1e3a5f] bg-transparent text-gray-500'
-      }`}
+      type="button" onClick={() => onChange(!checked)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
+        fontSize: '0.86rem', fontWeight: 600, transition: 'all 0.15s',
+        background: checked ? 'rgba(23,192,130,0.1)' : 'transparent',
+        border: checked ? '1px solid rgba(23,192,130,0.35)' : '1px solid var(--border2)',
+        color: checked ? '#17c082' : 'var(--muted)',
+      }}
     >
-      <span className={`w-3 h-3 rounded-full ${checked ? 'bg-[#22c55e]' : 'bg-gray-600'}`} />
+      <span style={{ width: 10, height: 10, borderRadius: '50%',
+        background: checked ? '#17c082' : 'var(--faint)', flexShrink: 0 }} />
       {label}
     </button>
   )
 }
 
-function FraudGauge({ prob }: { prob: number }) {
-  const pct   = Math.round(prob * 100)
-  const color = prob >= 0.5 ? ACCENT : prob >= 0.25 ? WARN : SAFE
-  const data  = [{ value: pct, fill: color }, { value: 100 - pct, fill: '#1e3a5f' }]
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-48 h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart cx="50%" cy="50%" innerRadius="65%" outerRadius="90%"
-            startAngle={90} endAngle={-270} data={data}>
-            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-            <RadialBar dataKey="value" cornerRadius={6} background={false} />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold" style={{ color }}>{pct}%</span>
-          <span className="text-xs text-gray-500 mt-1">Fraud Probability</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function FraudApp() {
-  const [txn, setTxn]       = useState<TxnInput>(defaultTxn)
-  const [result, setResult] = useState<FraudResult | null>(null)
+  const [txn,     setTxn]     = useState<TxnInput>(defaultTxn)
+  const [result,  setResult]  = useState<FraudResult | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState('')
+  const [error,   setError]   = useState('')
 
   function set(key: keyof TxnInput, val: string | boolean) {
-    setTxn(prev => ({ ...prev, [key]: val }))
+    setTxn(prev => ({ ...prev, [key]: val })); setResult(null)
   }
 
   async function analyse() {
-    setError('')
-    setResult(null)
-    setLoading(true)
+    setError(''); setResult(null); setLoading(true)
     try {
       const payload = {
-        amount:                  parseFloat(txn.amount) || 0,
-        hour:                    parseInt(txn.hour),
-        day_of_week:             parseInt(txn.day_of_week),
-        distance_from_home:      parseFloat(txn.distance_from_home) || 0,
-        distance_from_last_txn:  parseFloat(txn.distance_from_last_txn) || 0,
-        ratio_to_median:         parseFloat(txn.ratio_to_median) || 1,
-        txn_count_1h:            parseInt(txn.txn_count_1h) || 1,
-        merchant_category:       txn.merchant_category,
-        repeat_retailer:         txn.repeat_retailer ? 1 : 0,
-        used_chip:               txn.used_chip ? 1 : 0,
-        used_pin:                txn.used_pin ? 1 : 0,
-        online_order:            txn.online_order ? 1 : 0,
+        amount:                 parseFloat(txn.amount) || 0,
+        hour:                   parseInt(txn.hour),
+        day_of_week:            parseInt(txn.day_of_week),
+        distance_from_home:     parseFloat(txn.distance_from_home) || 0,
+        distance_from_last_txn: parseFloat(txn.distance_from_last_txn) || 0,
+        ratio_to_median:        parseFloat(txn.ratio_to_median) || 1,
+        txn_count_1h:           parseInt(txn.txn_count_1h) || 1,
+        merchant_category:      txn.merchant_category,
+        repeat_retailer:        txn.repeat_retailer ? 1 : 0,
+        used_chip:              txn.used_chip ? 1 : 0,
+        used_pin:               txn.used_pin ? 1 : 0,
+        online_order:           txn.online_order ? 1 : 0,
       }
       const res = await fetch(`${API_BASE}/predict`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -176,179 +127,201 @@ export default function FraudApp() {
         const err = await res.json().catch(() => ({ detail: res.statusText }))
         throw new Error(err.detail || 'API error')
       }
-      setResult(await res.json())
+      const data = await res.json()
+      setResult(data)
+      setTimeout(() => document.getElementById('result')?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setLoading(false)
-    }
+      setError(e instanceof Error ? e.message : String(e))
+    } finally { setLoading(false) }
   }
 
-  const decisionColor = result
-    ? result.decision === 'FRAUD' ? ACCENT : result.decision === 'REVIEW' ? WARN : SAFE
-    : '#fff'
+  const dColor = result ? decisionColor(result.decision) : '#17c082'
+  const pct    = result ? Math.round(result.fraud_probability * 100) : 0
 
   return (
-    <div className="min-h-screen bg-[#060d16] text-white font-mono">
-      {/* Header */}
-      <div className="border-b border-[#0f2237] bg-[#060d16]/95 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-white">
-              <span className="text-[#ef4444]">▲</span> Fraud Detection Engine
-            </h1>
-            <p className="text-xs text-gray-500">Real-time transaction fraud scoring · XGBoost ML</p>
-          </div>
-          <div className="flex gap-3 text-xs text-gray-600">
-            <span className="border border-[#1e3a5f] px-2 py-1 rounded">XGBoost Model</span>
-            <span className="border border-[#1e3a5f] px-2 py-1 rounded">150k Training Records</span>
-            <span className="border border-[#1e3a5f] px-2 py-1 rounded">Real-time Scoring</span>
-          </div>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '32px 16px' }}>
+      <div style={{ maxWidth: 1020, margin: '0 auto' }}>
 
-      <div className="max-w-6xl mx-auto px-6 py-10">
         {/* Hero */}
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold mb-2">Transaction Risk Analyser</h2>
-          <p className="text-gray-400 max-w-xl text-sm">
-            Submit transaction details to get an instant fraud probability score, risk level,
-            and explainable risk factors from our ML model.
+        <div style={{
+          background: 'linear-gradient(135deg,#12060a 0%,#200a10 55%,#3a0d18 100%)',
+          borderRadius: 16, padding: '48px 52px', marginBottom: 36, position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', right: 40, top: -10, fontSize: 180,
+            opacity: 0.05, color: '#fff', lineHeight: 1, userSelect: 'none' }}>◆</div>
+          <h1 style={{ fontSize: '2.1rem', fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+            Fraud Detection Engine
+          </h1>
+          <p style={{ color: '#f0a0b0', fontSize: '1rem', maxWidth: 560 }}>
+            Real-time transaction fraud scoring powered by XGBoost ML.
+            Trained on 150,000 transactions — instant fraud probability, risk level, and explainable risk factors.
           </p>
+          <div style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {['XGBoost Model', '150k Training Records', 'Real-time Scoring', 'Explainable Risk Factors', 'FRAUD · REVIEW · CLEAR'].map(t => (
+              <span key={t} className="tag" style={{
+                background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.25)', color: '#f08090',
+              }}>{t}</span>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Panel */}
-          <div className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-6 space-y-6">
-            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-widest">Transaction Details</h3>
+        {/* Input + Result grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Amount ($)" hint="Transaction value">
-                <Input value={txn.amount} onChange={v => set('amount', v)} placeholder="e.g. 250.00" min="0" step="0.01" />
+          {/* Input */}
+          <div className="card">
+            <div className="section-label" style={{ color: '#e74c3c' }}>Transaction Details</div>
+            <div className="section-title">Enter Transaction Information</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+              <Field label="Amount ($)">
+                <input type="number" value={txn.amount} min="0" step="0.01" placeholder="e.g. 250.00"
+                  onChange={e => set('amount', e.target.value)} />
               </Field>
               <Field label="Merchant Category">
-                <Select value={txn.merchant_category} onChange={v => set('merchant_category', v)} options={MERCHANT_CATEGORIES} />
+                <select value={txn.merchant_category} onChange={e => set('merchant_category', e.target.value)}>
+                  {MERCHANT_CATEGORIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               </Field>
-              <Field label="Hour of Day" hint="0 = midnight, 23 = 11pm">
-                <Input value={txn.hour} onChange={v => set('hour', v)} min="0" max="23" placeholder="0–23" />
+              <Field label="Hour of Day (0–23)">
+                <input type="number" value={txn.hour} min="0" max="23"
+                  onChange={e => set('hour', e.target.value)} />
               </Field>
               <Field label="Day of Week">
-                <Select value={txn.day_of_week} onChange={v => set('day_of_week', v)}
-                  options={DAYS.map((d, i) => ({ value: String(i), label: d }))} />
+                <select value={txn.day_of_week} onChange={e => set('day_of_week', e.target.value)}>
+                  {DAYS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
+                </select>
               </Field>
-              <Field label="Distance from Home (km)" hint="How far from cardholder's home">
-                <Input value={txn.distance_from_home} onChange={v => set('distance_from_home', v)} placeholder="e.g. 5" min="0" />
+              <Field label="Distance from Home (km)">
+                <input type="number" value={txn.distance_from_home} min="0" placeholder="e.g. 5"
+                  onChange={e => set('distance_from_home', e.target.value)} />
               </Field>
-              <Field label="Distance from Last Txn (km)" hint="Jump from previous transaction">
-                <Input value={txn.distance_from_last_txn} onChange={v => set('distance_from_last_txn', v)} placeholder="e.g. 2" min="0" />
+              <Field label="Distance from Last Txn (km)">
+                <input type="number" value={txn.distance_from_last_txn} min="0" placeholder="e.g. 2"
+                  onChange={e => set('distance_from_last_txn', e.target.value)} />
               </Field>
-              <Field label="Ratio to Median Spend" hint="1.0 = typical amount">
-                <Input value={txn.ratio_to_median} onChange={v => set('ratio_to_median', v)} placeholder="e.g. 1.5" min="0" step="0.1" />
+              <Field label="Ratio to Median Spend">
+                <input type="number" value={txn.ratio_to_median} min="0" step="0.1" placeholder="1.0"
+                  onChange={e => set('ratio_to_median', e.target.value)} />
               </Field>
-              <Field label="Transactions in Last Hour" hint="Velocity indicator">
-                <Input value={txn.txn_count_1h} onChange={v => set('txn_count_1h', v)} placeholder="e.g. 1" min="0" max="50" />
+              <Field label="Transactions in Last Hour">
+                <input type="number" value={txn.txn_count_1h} min="0" max="50"
+                  onChange={e => set('txn_count_1h', e.target.value)} />
               </Field>
             </div>
 
-            <div>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Transaction Flags</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Toggle label="Repeat Retailer"  checked={txn.repeat_retailer} onChange={v => set('repeat_retailer', v)} />
-                <Toggle label="Chip Used"         checked={txn.used_chip}       onChange={v => set('used_chip', v)} />
-                <Toggle label="PIN Used"          checked={txn.used_pin}        onChange={v => set('used_pin', v)} />
-                <Toggle label="Online Order"      checked={txn.online_order}    onChange={v => set('online_order', v)} />
+            <div style={{ marginBottom: 22 }}>
+              <label className="field-label" style={{ marginBottom: 10 }}>Transaction Flags</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Toggle label="Repeat Retailer" checked={txn.repeat_retailer} onChange={v => set('repeat_retailer', v)} />
+                <Toggle label="Chip Used"        checked={txn.used_chip}       onChange={v => set('used_chip', v)} />
+                <Toggle label="PIN Used"         checked={txn.used_pin}        onChange={v => set('used_pin', v)} />
+                <Toggle label="Online Order"     checked={txn.online_order}    onChange={v => set('online_order', v)} />
               </div>
             </div>
 
-            <button
-              onClick={analyse} disabled={loading || !txn.amount}
-              className="w-full py-3 rounded-lg font-semibold text-sm transition-all disabled:opacity-40
-                         bg-[#ef4444] hover:bg-[#dc2626] text-white"
-            >
-              {loading ? 'Analysing...' : 'Analyse Transaction'}
+            <button className="btn-primary" style={{ width: '100%',
+              background: loading || !txn.amount ? undefined : '#e74c3c' }}
+              onClick={analyse} disabled={loading || !txn.amount}>
+              {loading ? 'Analysing Transaction...' : 'Analyse Transaction'}
             </button>
-            {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+            {error && <p style={{ color: '#e74c3c', fontSize: '0.82rem', marginTop: 10 }}>{error}</p>}
           </div>
 
-          {/* Result Panel */}
-          <div className="space-y-4">
+          {/* Result */}
+          <div id="result">
             {!result && !loading && (
-              <div className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-8 h-full flex flex-col items-center justify-center text-center gap-4">
-                <div className="w-16 h-16 rounded-full border-2 border-[#1e3a5f] flex items-center justify-center text-2xl">
-                  🔍
-                </div>
-                <p className="text-gray-500 text-sm">Enter transaction details and click<br/><span className="text-white">Analyse Transaction</span> to get fraud score</p>
+              <div className="card" style={{ textAlign: 'center', padding: '60px 22px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>🔍</div>
+                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+                  Enter transaction details and click<br />
+                  <strong style={{ color: 'var(--text)' }}>Analyse Transaction</strong> to get fraud score
+                </p>
               </div>
             )}
             {loading && (
-              <div className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-8 h-full flex items-center justify-center">
-                <div className="text-gray-400 text-sm animate-pulse">Running fraud model...</div>
+              <div className="card" style={{ textAlign: 'center', padding: '60px 22px' }}>
+                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Running fraud model...</p>
               </div>
             )}
             {result && (
-              <>
-                {/* Decision Banner */}
-                <div className="rounded-xl p-5 border flex items-center justify-between"
-                  style={{ borderColor: decisionColor, background: `${decisionColor}12` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* Decision banner */}
+                <div style={{
+                  background: `${dColor}18`, border: `1px solid ${dColor}55`,
+                  borderRadius: 12, padding: '24px 28px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Decision</p>
-                    <p className="text-2xl font-bold" style={{ color: decisionColor }}>{result.decision}</p>
-                    <p className="text-xs text-gray-400 mt-1">Risk Level: <span style={{ color: decisionColor }}>{result.risk_level}</span> · Confidence: {result.confidence}</p>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase',
+                      letterSpacing: '1.5px', marginBottom: 6 }}>Decision</div>
+                    <div style={{ fontSize: '2.2rem', fontWeight: 800, color: dColor }}>
+                      {result.decision}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 4 }}>
+                      Risk Level: <span style={{ color: dColor }}>{result.risk_level}</span>
+                      {' · '}Confidence: {result.confidence}
+                    </div>
                   </div>
-                  <FraudGauge prob={result.fraud_probability} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '3rem', fontWeight: 800, color: dColor, lineHeight: 1 }}>
+                      {pct}%
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
+                      Fraud Probability
+                    </div>
+                    {/* Probability bar */}
+                    <div style={{ width: 120, height: 6, background: 'var(--border2)', borderRadius: 4, marginTop: 8 }}>
+                      <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: dColor, transition: 'width 0.4s' }} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Risk Factors */}
-                <div className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-                    Risk Factors ({result.risk_factors.length})
-                  </p>
-                  <ul className="space-y-2">
+                <div className="card">
+                  <div className="section-label" style={{ color: '#e74c3c' }}>Risk Factors</div>
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {result.risk_factors.map((f, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm">
-                        <span className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: result.decision === 'CLEAR' ? SAFE : result.decision === 'REVIEW' ? WARN : ACCENT }} />
-                        <span className="text-gray-300">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Score Breakdown */}
-                <div className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Score Breakdown</p>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Fraud Probability', value: `${(result.fraud_probability * 100).toFixed(2)}%` },
-                      { label: 'Model Confidence', value: result.confidence },
-                      { label: 'Risk Classification', value: result.risk_level },
-                      { label: 'Recommended Action', value: result.decision === 'FRAUD' ? 'Block & Alert' : result.decision === 'REVIEW' ? 'Manual Review' : 'Approve' },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex justify-between text-sm border-b border-[#0f2237] pb-2 last:border-0 last:pb-0">
-                        <span className="text-gray-500">{label}</span>
-                        <span className="text-white font-medium">{value}</span>
+                      <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <span style={{ marginTop: 5, width: 7, height: 7, borderRadius: '50%',
+                          background: dColor, flexShrink: 0 }} />
+                        <span style={{ color: 'var(--text)', fontSize: '0.88rem' }}>{f}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              </>
+
+                {/* Score breakdown */}
+                <div className="card">
+                  <div className="section-label" style={{ color: '#e74c3c' }}>Score Breakdown</div>
+                  <div style={{ marginTop: 14 }}>
+                    <KV k="Fraud Probability"   v={`${(result.fraud_probability * 100).toFixed(2)}%`} color={dColor} />
+                    <KV k="Model Confidence"    v={result.confidence} />
+                    <KV k="Risk Classification" v={result.risk_level} color={dColor} />
+                    <KV k="Recommended Action"  v={result.decision === 'FRAUD' ? 'Block & Alert' : result.decision === 'REVIEW' ? 'Manual Review' : 'Approve'} color={dColor} />
+                  </div>
+                </div>
+
+              </div>
             )}
           </div>
         </div>
 
-        {/* Model Info */}
-        <div className="mt-10 grid grid-cols-3 gap-4 text-center">
+        {/* Stats footer */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 32 }}>
           {[
             { label: 'Training Records', value: '150,000' },
-            { label: 'Model', value: 'XGBoost' },
+            { label: 'Model Architecture', value: 'XGBoost' },
             { label: 'Fraud Rate (Train)', value: '3.5%' },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-[#0a1628] border border-[#0f2237] rounded-xl p-4">
-              <p className="text-xl font-bold text-[#ef4444]">{value}</p>
-              <p className="text-xs text-gray-500 mt-1">{label}</p>
+            <div key={label} className="card" style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#e74c3c' }}>{value}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 4 }}>{label}</div>
             </div>
           ))}
         </div>
+
       </div>
     </div>
   )
