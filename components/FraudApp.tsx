@@ -232,7 +232,6 @@ export default function FraudApp() {
           <div id="result">
             {!result && !loading && (
               <div className="card" style={{ textAlign: 'center', padding: '60px 22px' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>🔍</div>
                 <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
                   Enter transaction details and click<br />
                   <strong style={{ color: 'var(--text)' }}>Analyse Transaction</strong> to get fraud score
