@@ -321,6 +321,23 @@ export default function FraudApp() {
           ))}
         </div>
 
+        {/* Footer */}
+        <div style={{ marginTop: 56, paddingTop: 28, borderTop: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ color: 'var(--faint)', fontSize: '0.82rem', lineHeight: 1.8 }}>
+            <span style={{ color: 'var(--muted)', fontWeight: 700, fontSize: '0.85rem' }}>
+              Muhammed Adediran
+            </span><br/>
+            Quantitative AI Engineer · Fraud Detection · Financial Data Scientist
+          </div>
+          <a href="https://adediran.xyz/contact" target="_blank" rel="noreferrer"
+            style={{ color: '#e74c3c', fontWeight: 600, fontSize: '0.85rem',
+              border: '1px solid rgba(231,76,60,0.25)', borderRadius: 8,
+              padding: '9px 20px', textDecoration: 'none' }}>
+            Get in touch
+          </a>
+        </div>
+
       </div>
     </div>
   )
