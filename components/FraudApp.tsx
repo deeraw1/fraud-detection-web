@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://fraud-detection-api.onrender.com'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://fraud-detection-api-b339.onrender.com'
 
 const ACCENT   = '#ef4444'
 const SAFE     = '#22c55e'
