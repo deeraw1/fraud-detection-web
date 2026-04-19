@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Credit Risk Scorer',
-  description: 'Basel-aligned scorecard model for retail borrowers + Altman Z-Score for corporates',
+  title: 'Fraud Detection Engine',
+  description: 'Real-time transaction fraud detection powered by XGBoost ML model',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

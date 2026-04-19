@@ -1,2 +1,3 @@
-import CreditApp from '@/components/CreditApp'
-export default function Page() { return <CreditApp /> }
+'use client'
+import FraudApp from '@/components/FraudApp'
+export default function Page() { return <FraudApp /> }
